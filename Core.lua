@@ -4,9 +4,9 @@
 
 -- KONFIGURÁCIA
 local SAUSAGE_VERSION = "1.0.6"
-local GITHUB_URL = "https://github.com/NikowskyWow/SausageMount/releases"
+local GITHUB_URL = "github.com/NikowskyWow/SausageMount/releases"
 
--- 1. DEFINÍCIA NÁZVOV PRE MENU (Key Bindings)
+-- 1. DEFINÍCIA NÁZVOV PRE MENU
 _G["BINDING_HEADER_SAUSAGE_HEADER"] = "|cffeda55fSausage Mount|r"
 _G["BINDING_NAME_SAUSAGE_CAST_RANDOM"] = "Cast Random Mount"
 
@@ -16,11 +16,21 @@ local db
 
 -- === THE ULTIMATE FLYING LIST (WARMANE EDITION) ===
 local FLY_KEYWORDS = {
+    -- Generic types
     "Drake", "Gryphon", "Wyvern", "Hippogryph", "Ray", "Nether", 
     "Phoenix", "Helicopter", "Carpet", "Proto", "Bat", "Dragon",
+    
+    -- Specific & Unique
     "Invincible", "Mimiron", "Headless", "Rocket", "Machine", "Broom",
     "Celestial", "Guardian", "Aspect", "Fey", "Reaver", "Nightmare",
-    "Windsteed", "Seeker", "Crow"
+    "Windsteed", "Seeker", "Crow", "Wind Rider",
+    
+    -- NOVÉ PRIDANÉ (Podľa tvojho zoznamu)
+    "Al'ar",        -- Ashes of Al'ar
+    "Wyrm",         -- Frost Wyrms
+    "Vanquisher",   -- ICC Meta mounts
+    "Winged",       -- Winged Steed of the Ebon Blade
+    "Horseman"      -- The Horseman's Reins (poistka)
 }
 
 -- Default nastavenia
@@ -60,7 +70,6 @@ local function RefreshMountDB()
     end
 end
 
--- TOTO JE GLOBÁLNA FUNKCIA, KTORÚ VOLÁ BINDINGS.XML
 function Sausage_CastRandomMount()
     if IsMounted() then
         Dismount()
@@ -78,7 +87,6 @@ function Sausage_CastRandomMount()
     local subZone = GetSubZoneText()
     local canFly = IsFlyableArea()
     
-    -- Fix pre Dalaran / Wintergrasp
     if zone == "Dalaran" then
         if subZone == "Krasus' Landing" then canFly = true else canFly = false end
     elseif zone == "Wintergrasp" then
@@ -115,11 +123,11 @@ function Sausage_CastRandomMount()
 end
 
 -- =========================================================================
--- 🎨 SAUSAGE UI
+-- 🎨 SAUSAGE UI - MAIN FRAME
 -- =========================================================================
 
 local MainFrame = CreateFrame("Frame", "SausageMountMainFrame", UIParent)
-MainFrame:SetSize(400, 560)
+MainFrame:SetSize(400, 500)
 MainFrame:SetPoint("CENTER")
 MainFrame:SetMovable(true)
 MainFrame:EnableMouse(true)
@@ -138,45 +146,92 @@ MainFrame:SetBackdrop({
 local CloseBtn = CreateFrame("Button", nil, MainFrame, "UIPanelCloseButton")
 CloseBtn:SetPoint("TOPRIGHT", -5, -5)
 
+-- HEADER (ZMENŠENÝ)
 local HeaderTexture = MainFrame:CreateTexture(nil, "ARTWORK")
 HeaderTexture:SetTexture("Interface\\DialogFrame\\UI-DialogBox-Header")
-HeaderTexture:SetWidth(350)
+HeaderTexture:SetWidth(250)
 HeaderTexture:SetHeight(64)
 HeaderTexture:SetPoint("TOP", 0, 12)
 
 local HeaderText = MainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
 HeaderText:SetPoint("TOP", HeaderTexture, "TOP", 0, -14)
-HeaderText:SetText("Sausage Mount Manager")
+HeaderText:SetText("Sausage Mount")
 
 local Footer = MainFrame:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
 Footer:SetPoint("BOTTOM", 0, 15)
 Footer:SetText("by Sausage Party")
 
+-- Version Text (Vľavo dole)
+local VersionText = MainFrame:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+VersionText:SetPoint("BOTTOMLEFT", 20, 15)
+VersionText:SetText("v" .. SAUSAGE_VERSION)
+
 -- Help Text pre Keybind
 local HelpText = MainFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-HelpText:SetPoint("BOTTOM", 0, 80)
+HelpText:SetPoint("BOTTOM", 0, 45)
 HelpText:SetWidth(350)
 HelpText:SetJustifyH("CENTER")
 HelpText:SetText("|cffFFD100Keybind:|r Press |cffFFFFFFESC -> Key Bindings -> Sausage Mount|r")
 
--- === GITHUB LINK BOX ===
-local LinkBox = CreateFrame("EditBox", nil, MainFrame, "InputBoxTemplate")
-LinkBox:SetSize(280, 20)
-LinkBox:SetPoint("BOTTOM", 0, 50)
-LinkBox:SetAutoFocus(false)
-LinkBox:SetText(GITHUB_URL)
-LinkBox:SetCursorPosition(0)
-LinkBox:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
-LinkBox:SetScript("OnMouseUp", function(self) self:HighlightText() end)
 
-local LinkLabel = MainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-LinkLabel:SetPoint("BOTTOM", LinkBox, "TOP", 0, 2)
-LinkLabel:SetText("Get Updates (CTRL+C to copy):")
+-- =========================================================================
+-- 🆕 GITHUB POPUP FRAME
+-- =========================================================================
 
--- === ZOBRAZENIE VERZIE ===
-local VersionText = MainFrame:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
-VersionText:SetPoint("TOP", LinkBox, "BOTTOM", 0, -5)
-VersionText:SetText("Current Version: " .. SAUSAGE_VERSION)
+local GitFrame = CreateFrame("Frame", "SausageGitFrame", UIParent)
+GitFrame:SetSize(350, 120)
+GitFrame:SetPoint("CENTER")
+GitFrame:SetFrameStrata("DIALOG")
+GitFrame:Hide()
+
+GitFrame:SetBackdrop({
+    bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
+    edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
+    tile = true, tileSize = 32, edgeSize = 32,
+    insets = { left = 11, right = 12, top = 12, bottom = 11 }
+})
+
+local GitClose = CreateFrame("Button", nil, GitFrame, "UIPanelCloseButton")
+GitClose:SetPoint("TOPRIGHT", -5, -5)
+
+local GitHeader = GitFrame:CreateTexture(nil, "ARTWORK")
+GitHeader:SetTexture("Interface\\DialogFrame\\UI-DialogBox-Header")
+GitHeader:SetWidth(200)
+GitHeader:SetHeight(64)
+GitHeader:SetPoint("TOP", 0, 12)
+
+local GitTitle = GitFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+GitTitle:SetPoint("TOP", GitHeader, "TOP", 0, -14)
+GitTitle:SetText("Update Link")
+
+local GitBox = CreateFrame("EditBox", nil, GitFrame, "InputBoxTemplate")
+GitBox:SetSize(280, 20)
+GitBox:SetPoint("CENTER", 0, -10)
+GitBox:SetAutoFocus(false)
+GitBox:SetText(GITHUB_URL)
+GitBox:SetCursorPosition(0)
+GitBox:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
+GitBox:SetScript("OnEscapePressed", function(self) GitFrame:Hide() end)
+GitBox:SetScript("OnMouseUp", function(self) self:HighlightText() end)
+
+local GitInst = GitFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+GitInst:SetPoint("BOTTOM", GitBox, "TOP", 0, 5)
+GitInst:SetText("Press CTRL+C to copy:")
+
+-- BUTTON "CHECK UPDATES" (Vpravo dole na hlavnom okne)
+local UpdateBtn = CreateFrame("Button", nil, MainFrame, "UIPanelButtonTemplate")
+UpdateBtn:SetSize(110, 25)
+UpdateBtn:SetPoint("BOTTOMRIGHT", -15, 12)
+UpdateBtn:SetText("Check Updates")
+UpdateBtn:SetScript("OnClick", function()
+    GitFrame:Show()
+    GitBox:SetFocus()
+    GitBox:HighlightText()
+end)
+
+-- =========================================================================
+-- 📜 SCROLL FRAME
+-- =========================================================================
 
 local function CreateDarkPanel(parent)
     local box = CreateFrame("Frame", nil, parent)
@@ -191,20 +246,16 @@ local function CreateDarkPanel(parent)
     return box
 end
 
--- =========================================================================
--- 📜 SCROLL FRAME
--- =========================================================================
-
 local ListBox = CreateDarkPanel(MainFrame)
 ListBox:SetPoint("TOPLEFT", 20, -50)
-ListBox:SetPoint("BOTTOMRIGHT", -20, 110)
+ListBox:SetPoint("BOTTOMRIGHT", -20, 70) 
 
 local ScrollFrame = CreateFrame("ScrollFrame", "SausageScrollFrame", ListBox, "FauxScrollFrameTemplate")
 ScrollFrame:SetPoint("TOPLEFT", 0, -5)
 ScrollFrame:SetPoint("BOTTOMRIGHT", -30, 5)
 
 local ROW_HEIGHT = 35
-local MAX_ROWS = 9
+local MAX_ROWS = 10
 local rows = {}
 
 local function CreateRow(index)
