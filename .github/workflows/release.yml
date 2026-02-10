@@ -1,0 +1,61 @@
+name: Release Sausage Mount
+
+on:
+  push:
+    tags:
+      - '*' # Spustí sa pri akomkoľvek tagu (napr. 1.0.0, v1.0)
+
+permissions:
+  contents: write # Potrebné pre vytváranie releasov a pushovanie zmien
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0 # Potrebné pre git operácie
+
+      - name: Get Tag Version
+        id: get_version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+
+      - name: Update TOC Version
+        run: |
+          # Nájde riadok "## Version: ..." a nahradí ho verziou z tagu
+          sed -i "s/^## Version: .*/## Version: ${{ env.VERSION }}/" SausageMount.toc
+
+      - name: Commit and Push Version Update
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add SausageMount.toc
+          git commit -m "Bump version to ${{ env.VERSION }}"
+          
+          # Zistíme názov default vetvy (zvyčajne main alebo master) a pushneme zmenu
+          DEFAULT_BRANCH=$(git remote show origin | grep 'HEAD branch' | cut -d' ' -f5)
+          git push origin HEAD:$DEFAULT_BRANCH || echo "Warning: Could not push to $DEFAULT_BRANCH. Continuing with release."
+
+      - name: Prepare Release ZIP
+        run: |
+          REPO_NAME=${{ github.event.repository.name }}
+          mkdir release_temp
+          # Vytvoríme priečinok s názvom addonu (aby to po rozbalení malo správnu štruktúru pre WoW)
+          mkdir release_temp/$REPO_NAME
+          
+          # Skopírujeme súbory, vynecháme README, git veci a temp priečinok
+          rsync -av --exclude='.git*' --exclude='.github' --exclude='README*' --exclude='release_temp' . release_temp/$REPO_NAME/
+          
+          # Vytvoríme ZIP archív
+          cd release_temp
+          zip -r ../$REPO_NAME.zip $REPO_NAME
+          cd ..
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: ${{ github.event.repository.name }}.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
