@@ -3,7 +3,7 @@
 -- =========================================================================
 
 -- KONFIGURÁCIA
-local SAUSAGE_VERSION = "1.0.7"
+local SAUSAGE_VERSION = "1.0.8"
 local GITHUB_URL = "github.com/NikowskyWow/SausageMount/releases"
 
 -- 1. DEFINÍCIA NÁZVOV PRE MENU
