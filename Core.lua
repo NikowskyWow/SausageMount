@@ -1,8 +1,8 @@
 -- =========================================================================
--- SAUSAGE MOUNT v1.0 - UI Polish & Instructions
+-- SAUSAGE MOUNT v3.8 - Dalaran Landing Fix
 -- =========================================================================
 
--- 1. DEFINÍCIA NÁZVOV PRE MENU (Musí byť na začiatku a globálne)
+-- 1. DEFINÍCIA NÁZVOV PRE MENU
 _G["BINDING_HEADER_SAUSAGE_HEADER"] = "|cffeda55fSausage Mount|r"
 _G["BINDING_NAME_SAUSAGE_CAST_RANDOM"] = "Cast Random Mount"
 
@@ -67,11 +67,23 @@ function Sausage_CastRandomMount()
     RefreshMountDB()
 
     local zone = GetRealZoneText()
+    local subZone = GetSubZoneText() -- Získame aj názov pod-oblasti (napr. Krasus' Landing)
     local canFly = IsFlyableArea()
     
-    -- Fix pre Dalaran / Wintergrasp
-    if zone == "Dalaran" or zone == "Wintergrasp" then
-        canFly = false
+    -- === FIX PRE DALARAN A WINTERGRASP ===
+    
+    if zone == "Dalaran" then
+        -- V Dalarane sa dá lietať LEN na Krasus' Landing
+        if subZone == "Krasus' Landing" then
+            canFly = true
+        else
+            canFly = false
+        end
+        
+    elseif zone == "Wintergrasp" then
+        -- Wintergrasp je špecifický, API niekedy klame, radšej safe check
+        -- Ak prebieha bitka (nedá sa lietať), IsFlyableArea by malo vrátiť false
+        if not canFly then canFly = false end
     end
 
     local candidates = {}
@@ -83,8 +95,10 @@ function Sausage_CastRandomMount()
 
         if data and data.enabled then
             if canFly then
+                -- Sme vo vzduchu (alebo Krasus Landing): chceme LEN Air mountov
                 if data.isAir then table.insert(candidates, i) end
             else
+                -- Sme na zemi (Dalaran ulice / Dungeon): chceme LEN Ground mountov
                 if not data.isAir then table.insert(candidates, i) end
             end
         end
@@ -108,7 +122,7 @@ end
 -- =========================================================================
 
 local MainFrame = CreateFrame("Frame", "SausageMountMainFrame", UIParent)
-MainFrame:SetSize(400, 520) -- Trošku vyššie okno kvôli inštrukciám
+MainFrame:SetSize(400, 520)
 MainFrame:SetPoint("CENTER")
 MainFrame:SetMovable(true)
 MainFrame:EnableMouse(true)
@@ -141,7 +155,7 @@ local Footer = MainFrame:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall"
 Footer:SetPoint("BOTTOM", 0, 15)
 Footer:SetText("by Sausage Party")
 
--- === NOVÉ INŠTRUKCIE PRE KEYBIND ===
+-- Help Text
 local HelpText = MainFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 HelpText:SetPoint("BOTTOM", 0, 35)
 HelpText:SetWidth(350)
@@ -167,7 +181,7 @@ end
 
 local ListBox = CreateDarkPanel(MainFrame)
 ListBox:SetPoint("TOPLEFT", 20, -50)
-ListBox:SetPoint("BOTTOMRIGHT", -20, 60) -- Zväčšený spodný okraj pre inštrukcie
+ListBox:SetPoint("BOTTOMRIGHT", -20, 60)
 
 local ScrollFrame = CreateFrame("ScrollFrame", "SausageScrollFrame", ListBox, "FauxScrollFrameTemplate")
 ScrollFrame:SetPoint("TOPLEFT", 0, -5)
@@ -180,8 +194,6 @@ local rows = {}
 local function CreateRow(index)
     local row = CreateFrame("Frame", nil, ListBox)
     row:SetSize(330, ROW_HEIGHT)
-    
-    -- UPDATE: Posunuté nižšie (-12 namiesto -5), aby sa nelepilo na vrch
     row:SetPoint("TOPLEFT", 10, -((index - 1) * ROW_HEIGHT) - 12)
     
     row.icon = row:CreateTexture(nil, "ARTWORK")
@@ -321,7 +333,7 @@ SM:SetScript("OnEvent", function(self, event, arg1)
         SLASH_SAUSAGE1 = "/sausage"
         SlashCmdList["SAUSAGE"] = function() MainFrame:Show() end
         
-        print("|cffeda55fSausage Mount v3.7|r loaded!")
+        print("|cffeda55fSausage Mount v3.8|r loaded!")
         self:UnregisterEvent("ADDON_LOADED")
     end
 end)
