@@ -66,6 +66,7 @@ local function RefreshMountDB()
         else
             db.mounts[spellID].name = creatureName
             db.mounts[spellID].icon = icon
+            db.mounts[spellID].isAir = IsLikelyFlyer(creatureName)
         end
     end
 end
@@ -390,6 +391,7 @@ SM:SetScript("OnEvent", function(self, event, arg1)
         if not SausageMountDB then SausageMountDB = defaults end
         db = SausageMountDB
         if not db.mounts then db.mounts = {} end
+        RefreshMountDB()
         
         UpdateMinimapButton()
         
