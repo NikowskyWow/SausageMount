@@ -2,7 +2,7 @@
 ## Title: |cffeda55fSausage|r Mount
 ## Notes: Random mount summoner by Sausage Party.
 ## Author: Sausage Party
-## Version: 1.0
+## Version: 1.0.2
 ## SavedVariables: SausageMountDB
 
 Bindings.xml
