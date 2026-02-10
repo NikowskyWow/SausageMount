@@ -11,4 +11,4 @@ Manager: Click the Sausage Icon on your minimap to select which mounts to use (F
 
 Keybind: Press ESC -> Key Bindings -> Scroll down to Sausage Mount -> Set your key.
 
-Version: 1.0
+Version: 1.0.6

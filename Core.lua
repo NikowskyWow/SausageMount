@@ -3,7 +3,7 @@
 -- =========================================================================
 
 -- KONFIGURÁCIA
-local SAUSAGE_VERSION = "1.0.5"
+local SAUSAGE_VERSION = "1.0.6"
 local GITHUB_URL = "https://github.com/NikowskyWow/SausageMount/releases"
 
 -- 1. DEFINÍCIA NÁZVOV PRE MENU (Key Bindings)
