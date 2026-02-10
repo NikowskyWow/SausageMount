@@ -130,6 +130,7 @@ MainFrame:RegisterForDrag("LeftButton")
 MainFrame:SetScript("OnDragStart", MainFrame.StartMoving)
 MainFrame:SetScript("OnDragStop", MainFrame.StopMovingOrSizing)
 MainFrame:Hide()
+table.insert(UISpecialFrames, "SausageMountMainFrame")
 
 MainFrame:SetBackdrop({
     bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
@@ -143,13 +144,13 @@ CloseBtn:SetPoint("TOPRIGHT", -5, -5)
 
 local HeaderTexture = MainFrame:CreateTexture(nil, "ARTWORK")
 HeaderTexture:SetTexture("Interface\\DialogFrame\\UI-DialogBox-Header")
-HeaderTexture:SetWidth(350)
+HeaderTexture:SetWidth(250)
 HeaderTexture:SetHeight(64)
 HeaderTexture:SetPoint("TOP", 0, 12)
 
 local HeaderText = MainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
 HeaderText:SetPoint("TOP", HeaderTexture, "TOP", 0, -14)
-HeaderText:SetText("Sausage Mount Manager")
+HeaderText:SetText("Sausage Mount")
 
 local Footer = MainFrame:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
 Footer:SetPoint("BOTTOM", 0, 15)

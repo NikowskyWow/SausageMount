@@ -1,7 +1,7 @@
 ## Interface: 30300
 ## Title: |cffeda55fSausage|r Mount
 ## Notes: Random mount summoner by Sausage Party.
-## Author: Sausage Party
+## Author: Sausage Party / Kokotiar
 ## Version: 1.0.2
 ## SavedVariables: SausageMountDB
 
