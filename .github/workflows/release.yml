@@ -22,16 +22,17 @@ jobs:
         id: get_version
         run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
 
-      - name: Update TOC Version
+      - name: Update Project Version
         run: |
           # Nájde riadok "## Version: ..." a nahradí ho verziou z tagu
           sed -i "s/^## Version: .*/## Version: ${{ env.VERSION }}/" SausageMount.toc
-
+          sed -i "s/local SAUSAGE_VERSION = \".*\"/local SAUSAGE_VERSION = \"${{ env.VERSION }}\"/" Core.lua 
+          sed -i "s/^Version: .*/Version: ${{ env.VERSION }}/" readme.md
       - name: Commit and Push Version Update
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add SausageMount.toc
+          git add SausageMount.toc Core.lua readme.md
           git commit -m "Bump version to ${{ env.VERSION }}"
           
           # Zistíme názov default vetvy (zvyčajne main alebo master) a pushneme zmenu

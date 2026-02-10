@@ -1,8 +1,12 @@
 -- =========================================================================
--- SAUSAGE MOUNT v3.8 - Dalaran Landing Fix
+-- SAUSAGE MOUNT
 -- =========================================================================
 
--- 1. DEFINÍCIA NÁZVOV PRE MENU
+-- KONFIGURÁCIA
+local SAUSAGE_VERSION = "1.0.5"
+local GITHUB_URL = "https://github.com/NikowskyWow/SausageMount/releases"
+
+-- 1. DEFINÍCIA NÁZVOV PRE MENU (Key Bindings)
 _G["BINDING_HEADER_SAUSAGE_HEADER"] = "|cffeda55fSausage Mount|r"
 _G["BINDING_NAME_SAUSAGE_CAST_RANDOM"] = "Cast Random Mount"
 
@@ -10,10 +14,13 @@ local addonName, addonTable = ...
 local SM = CreateFrame("Frame")
 local db
 
--- Kľúčové slová pre auto-detekciu lietajúcich mountov
+-- === THE ULTIMATE FLYING LIST (WARMANE EDITION) ===
 local FLY_KEYWORDS = {
     "Drake", "Gryphon", "Wyvern", "Hippogryph", "Ray", "Nether", 
-    "Phoenix", "Helicopter", "Carpet", "Proto", "Bat", "Dragon"
+    "Phoenix", "Helicopter", "Carpet", "Proto", "Bat", "Dragon",
+    "Invincible", "Mimiron", "Headless", "Rocket", "Machine", "Broom",
+    "Celestial", "Guardian", "Aspect", "Fey", "Reaver", "Nightmare",
+    "Windsteed", "Seeker", "Crow"
 }
 
 -- Default nastavenia
@@ -37,6 +44,7 @@ local function RefreshMountDB()
     local numMounts = GetNumCompanions("MOUNT")
     for i = 1, numMounts do
         local creatureID, creatureName, spellID, icon, active = GetCompanionInfo("MOUNT", i)
+        
         if not db.mounts[spellID] then
             local isFlyer = IsLikelyFlyer(creatureName)
             db.mounts[spellID] = {
@@ -67,22 +75,13 @@ function Sausage_CastRandomMount()
     RefreshMountDB()
 
     local zone = GetRealZoneText()
-    local subZone = GetSubZoneText() -- Získame aj názov pod-oblasti (napr. Krasus' Landing)
+    local subZone = GetSubZoneText()
     local canFly = IsFlyableArea()
     
-    -- === FIX PRE DALARAN A WINTERGRASP ===
-    
+    -- Fix pre Dalaran / Wintergrasp
     if zone == "Dalaran" then
-        -- V Dalarane sa dá lietať LEN na Krasus' Landing
-        if subZone == "Krasus' Landing" then
-            canFly = true
-        else
-            canFly = false
-        end
-        
+        if subZone == "Krasus' Landing" then canFly = true else canFly = false end
     elseif zone == "Wintergrasp" then
-        -- Wintergrasp je špecifický, API niekedy klame, radšej safe check
-        -- Ak prebieha bitka (nedá sa lietať), IsFlyableArea by malo vrátiť false
         if not canFly then canFly = false end
     end
 
@@ -95,10 +94,8 @@ function Sausage_CastRandomMount()
 
         if data and data.enabled then
             if canFly then
-                -- Sme vo vzduchu (alebo Krasus Landing): chceme LEN Air mountov
                 if data.isAir then table.insert(candidates, i) end
             else
-                -- Sme na zemi (Dalaran ulice / Dungeon): chceme LEN Ground mountov
                 if not data.isAir then table.insert(candidates, i) end
             end
         end
@@ -106,9 +103,9 @@ function Sausage_CastRandomMount()
 
     if #candidates == 0 then
         if canFly then
-            UIErrorsFrame:AddMessage("|cffeda55f[Sausage]|r No ENABLED FLYING mounts found!", 1.0, 0.0, 0.0)
+            UIErrorsFrame:AddMessage("|cffeda55f[Sausage]|r No FLYING mounts found!", 1.0, 0.0, 0.0)
         else
-            UIErrorsFrame:AddMessage("|cffeda55f[Sausage]|r No ENABLED GROUND mounts found!", 1.0, 0.0, 0.0)
+            UIErrorsFrame:AddMessage("|cffeda55f[Sausage]|r No GROUND mounts found!", 1.0, 0.0, 0.0)
         end
         return
     end
@@ -122,7 +119,7 @@ end
 -- =========================================================================
 
 local MainFrame = CreateFrame("Frame", "SausageMountMainFrame", UIParent)
-MainFrame:SetSize(400, 520)
+MainFrame:SetSize(400, 560)
 MainFrame:SetPoint("CENTER")
 MainFrame:SetMovable(true)
 MainFrame:EnableMouse(true)
@@ -130,7 +127,6 @@ MainFrame:RegisterForDrag("LeftButton")
 MainFrame:SetScript("OnDragStart", MainFrame.StartMoving)
 MainFrame:SetScript("OnDragStop", MainFrame.StopMovingOrSizing)
 MainFrame:Hide()
-table.insert(UISpecialFrames, "SausageMountMainFrame")
 
 MainFrame:SetBackdrop({
     bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
@@ -144,24 +140,43 @@ CloseBtn:SetPoint("TOPRIGHT", -5, -5)
 
 local HeaderTexture = MainFrame:CreateTexture(nil, "ARTWORK")
 HeaderTexture:SetTexture("Interface\\DialogFrame\\UI-DialogBox-Header")
-HeaderTexture:SetWidth(250)
+HeaderTexture:SetWidth(350)
 HeaderTexture:SetHeight(64)
 HeaderTexture:SetPoint("TOP", 0, 12)
 
 local HeaderText = MainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
 HeaderText:SetPoint("TOP", HeaderTexture, "TOP", 0, -14)
-HeaderText:SetText("Sausage Mount")
+HeaderText:SetText("Sausage Mount Manager")
 
 local Footer = MainFrame:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
 Footer:SetPoint("BOTTOM", 0, 15)
 Footer:SetText("by Sausage Party")
 
--- Help Text
+-- Help Text pre Keybind
 local HelpText = MainFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-HelpText:SetPoint("BOTTOM", 0, 35)
+HelpText:SetPoint("BOTTOM", 0, 80)
 HelpText:SetWidth(350)
 HelpText:SetJustifyH("CENTER")
-HelpText:SetText("|cffFFD100To set Keybind:|r Press |cffFFFFFFESC -> Key Bindings -> Sausage Mount|r")
+HelpText:SetText("|cffFFD100Keybind:|r Press |cffFFFFFFESC -> Key Bindings -> Sausage Mount|r")
+
+-- === GITHUB LINK BOX ===
+local LinkBox = CreateFrame("EditBox", nil, MainFrame, "InputBoxTemplate")
+LinkBox:SetSize(280, 20)
+LinkBox:SetPoint("BOTTOM", 0, 50)
+LinkBox:SetAutoFocus(false)
+LinkBox:SetText(GITHUB_URL)
+LinkBox:SetCursorPosition(0)
+LinkBox:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
+LinkBox:SetScript("OnMouseUp", function(self) self:HighlightText() end)
+
+local LinkLabel = MainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+LinkLabel:SetPoint("BOTTOM", LinkBox, "TOP", 0, 2)
+LinkLabel:SetText("Get Updates (CTRL+C to copy):")
+
+-- === ZOBRAZENIE VERZIE ===
+local VersionText = MainFrame:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+VersionText:SetPoint("TOP", LinkBox, "BOTTOM", 0, -5)
+VersionText:SetText("Current Version: " .. SAUSAGE_VERSION)
 
 local function CreateDarkPanel(parent)
     local box = CreateFrame("Frame", nil, parent)
@@ -182,14 +197,14 @@ end
 
 local ListBox = CreateDarkPanel(MainFrame)
 ListBox:SetPoint("TOPLEFT", 20, -50)
-ListBox:SetPoint("BOTTOMRIGHT", -20, 60)
+ListBox:SetPoint("BOTTOMRIGHT", -20, 110)
 
 local ScrollFrame = CreateFrame("ScrollFrame", "SausageScrollFrame", ListBox, "FauxScrollFrameTemplate")
 ScrollFrame:SetPoint("TOPLEFT", 0, -5)
 ScrollFrame:SetPoint("BOTTOMRIGHT", -30, 5)
 
 local ROW_HEIGHT = 35
-local MAX_ROWS = 11
+local MAX_ROWS = 9
 local rows = {}
 
 local function CreateRow(index)
@@ -203,22 +218,15 @@ local function CreateRow(index)
     
     row.name = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     row.name:SetPoint("LEFT", row.icon, "RIGHT", 10, 0)
-    row.name:SetWidth(140)
+    row.name:SetWidth(180)
     row.name:SetJustifyH("LEFT")
     
     row.cbEnable = CreateFrame("CheckButton", nil, row, "UICheckButtonTemplate")
     row.cbEnable:SetSize(24, 24)
-    row.cbEnable:SetPoint("RIGHT", -80, 0)
+    row.cbEnable:SetPoint("RIGHT", -20, 0)
     row.cbEnable.text = row.cbEnable:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     row.cbEnable.text:SetPoint("BOTTOM", row.cbEnable, "TOP", 0, 0)
-    row.cbEnable.text:SetText("Use")
-
-    row.cbAir = CreateFrame("CheckButton", nil, row, "UICheckButtonTemplate")
-    row.cbAir:SetSize(24, 24)
-    row.cbAir:SetPoint("RIGHT", -30, 0)
-    row.cbAir.text = row.cbAir:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    row.cbAir.text:SetPoint("BOTTOM", row.cbAir, "TOP", 0, 0)
-    row.cbAir.text:SetText("Fly")
+    row.cbEnable.text:SetText("Enable")
     
     return row
 end
@@ -243,13 +251,16 @@ local function UpdateScrollList()
         if idx <= #mountList then
             local mountInfo = mountList[idx]
             local dbData = db.mounts[mountInfo.spellID]
+            
             row:Show()
             row.icon:SetTexture(dbData.icon)
-            row.name:SetText(dbData.name)
+            
+            local typeTag = " (Ground)"
+            if dbData.isAir then typeTag = " |cff00FF00(Fly)|r" end
+            row.name:SetText(dbData.name .. typeTag)
+            
             row.cbEnable:SetChecked(dbData.enabled)
             row.cbEnable:SetScript("OnClick", function(self) db.mounts[mountInfo.spellID].enabled = self:GetChecked() end)
-            row.cbAir:SetChecked(dbData.isAir)
-            row.cbAir:SetScript("OnClick", function(self) db.mounts[mountInfo.spellID].isAir = self:GetChecked() end)
         else
             row:Hide()
         end
@@ -334,7 +345,6 @@ SM:SetScript("OnEvent", function(self, event, arg1)
         SLASH_SAUSAGE1 = "/sausage"
         SlashCmdList["SAUSAGE"] = function() MainFrame:Show() end
         
-        print("|cffeda55fSausage Mount v3.8|r loaded!")
         self:UnregisterEvent("ADDON_LOADED")
     end
 end)
