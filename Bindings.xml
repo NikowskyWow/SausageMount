@@ -1,5 +1,5 @@
 <Bindings>
-    <Binding name="SAUSAGE_CAST_RANDOM" header="SAUSAGE_HEADER" runOnUp="true">
+    <Binding name="SAUSAGE_CAST_RANDOM" header="SAUSAGE_HEADER">
         Sausage_CastRandomMount()
     </Binding>
 </Bindings>
