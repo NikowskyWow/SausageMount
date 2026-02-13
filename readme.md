@@ -2,7 +2,9 @@
 
 The intelligent mount manager for **World of Warcraft: Wrath of the Lich King (3.3.5a)**. Designed specifically for **Warmane** players, this addon automatically selects the mount—flying or ground—based on your current zone, sub-zone restrictions, and personal preferences.
 
----
+<p align="center">
+  <img width="424" height="527" alt="SausageMount" src="https://github.com/user-attachments/assets/8b65db43-9ba5-40f4-ace7-ae463ff86536" />
+</p>
 
 ## 🚀 Features
 

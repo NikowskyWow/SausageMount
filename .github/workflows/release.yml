@@ -32,7 +32,6 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add SausageMount.toc Core.lua readme.md
           git commit -m "Bump version to ${{ env.VERSION }}"
           
           # Zistíme názov default vetvy (zvyčajne main alebo master) a pushneme zmenu
@@ -46,8 +45,8 @@ jobs:
           # Vytvoríme priečinok s názvom addonu (aby to po rozbalení malo správnu štruktúru pre WoW)
           mkdir release_temp/$REPO_NAME
           
-          # Skopírujeme súbory, vynecháme README, git veci a temp priečinok
-          rsync -av --exclude='.git*' --exclude='.github' --exclude='README*' --exclude='release_temp' . release_temp/$REPO_NAME/
+          # Skopírujeme súbory, vynecháme git veci a temp priečinok
+          rsync -av --exclude='.git*' --exclude='.github' --exclude='release_temp' . release_temp/$REPO_NAME/
           
           # Vytvoríme ZIP archív
           cd release_temp
