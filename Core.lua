@@ -395,9 +395,6 @@ SM:SetScript("OnEvent", function(self, event, arg1)
         
         UpdateMinimapButton()
         
-        SLASH_SAUSAGE1 = "/sausage"
-        SlashCmdList["SAUSAGE"] = function() MainFrame:Show() end
-        
         self:UnregisterEvent("ADDON_LOADED")
     end
 end)
