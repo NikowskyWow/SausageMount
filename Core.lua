@@ -1,12 +1,10 @@
 -- =========================================================================
--- SAUSAGE MOUNT v1.1.1 - 1-Click Shapeshift Fix & Ground Fallback
+-- SAUSAGE MOUNT v1.1.3 - Secure Macro Engine (Druid Fix)
 -- =========================================================================
 
--- KONFIGURÁCIA
-local SAUSAGE_VERSION = "1.1.2"
+local SAUSAGE_VERSION = "1.1.3"
 local GITHUB_URL = "github.com/NikowskyWow/SausageMount/releases"
 
--- 1. DEFINÍCIA NÁZVOV PRE MENU
 _G["BINDING_HEADER_SAUSAGE_HEADER"] = "|cffeda55fSausage Mount|r"
 _G["BINDING_NAME_SAUSAGE_CAST_RANDOM"] = "Cast Random Mount"
 
@@ -14,34 +12,16 @@ local addonName, addonTable = ...
 local SM = CreateFrame("Frame")
 local db
 
--- === THE ULTIMATE FLYING LIST (WARMANE EDITION) ===
 local FLY_KEYWORDS = {
-    -- Generic types
     "Drake", "Gryphon", "Wyvern", "Hippogryph", "Ray", "Nether", 
     "Phoenix", "Helicopter", "Carpet", "Proto", "Bat", "Dragon",
-    
-    -- Specific & Unique
     "Invincible", "Mimiron", "Headless", "Rocket", "Machine", "Broom",
     "Celestial", "Guardian", "Aspect", "Fey", "Reaver", "Nightmare",
     "Windsteed", "Seeker", "Crow", "Wind Rider",
-    
-    -- Specific Additions
-    "Al'ar",        -- Ashes of Al'ar
-    "Wyrm",         -- Frost Wyrms
-    "Vanquisher",   -- ICC Meta mounts
-    "Winged",       -- Winged Steed of the Ebon Blade
-    "Horseman"      -- The Horseman's Reins
+    "Al'ar", "Wyrm", "Vanquisher", "Winged", "Horseman"
 }
 
--- Default nastavenia
-local defaults = {
-    minimapPos = 45,
-    mounts = {}
-}
-
--- =========================================================================
--- 🧠 LOGIKA (Backend)
--- =========================================================================
+local defaults = { minimapPos = 45, mounts = {} }
 
 local function IsLikelyFlyer(name)
     for _, word in ipairs(FLY_KEYWORDS) do
@@ -54,16 +34,10 @@ local function RefreshMountDB()
     local numMounts = GetNumCompanions("MOUNT")
     for i = 1, numMounts do
         local creatureID, creatureName, spellID, icon, active = GetCompanionInfo("MOUNT", i)
-        
         local isFlyer = IsLikelyFlyer(creatureName)
 
         if not db.mounts[spellID] then
-            db.mounts[spellID] = {
-                enabled = true,
-                isAir = isFlyer,
-                name = creatureName,
-                icon = icon
-            }
+            db.mounts[spellID] = { enabled = true, isAir = isFlyer, name = creatureName, icon = icon }
         else
             db.mounts[spellID].name = creatureName
             db.mounts[spellID].icon = icon
@@ -72,20 +46,21 @@ local function RefreshMountDB()
     end
 end
 
--- === MIKRO ČASOVAČ PRE SHAPESHIFTY ===
-local MountTimer = CreateFrame("Frame")
-MountTimer:Hide()
-local mountDelay = 0
+-- =========================================================================
+-- 🚀 THE MACRO ENGINE (100% BLIZZARD NATIVE BEHAVIOR)
+-- =========================================================================
 
--- Samotné vyvolanie mounta (Oddelené kvôli časovaču)
-local function Sausage_ExecuteMount()
+local CastBtn = CreateFrame("Button", "SausageMountCastBtn", UIParent, "SecureActionButtonTemplate")
+
+CastBtn:SetScript("PreClick", function(self)
+    if InCombatLockdown() then return end
+
     RefreshMountDB()
 
     local zone = GetRealZoneText()
     local subZone = GetSubZoneText()
     local canFly = IsFlyableArea()
     
-    -- Dalaran / Wintergrasp logika
     if zone == "Dalaran" then
         if subZone == "Krasus' Landing" then canFly = true else canFly = false end
     elseif zone == "Wintergrasp" then
@@ -98,7 +73,6 @@ local function Sausage_ExecuteMount()
     for i = 1, numMounts do
         local _, _, spellID = GetCompanionInfo("MOUNT", i)
         local data = db.mounts[spellID]
-
         if data and data.enabled then
             if canFly then
                 if data.isAir then table.insert(candidates, i) end
@@ -108,7 +82,7 @@ local function Sausage_ExecuteMount()
         end
     end
 
-    -- Fallback: Ak sme vo Fly zóne, ale nemáme žiadneho povoleného Fly mounta
+    -- Fallback: Ak sme vo Fly zóne, ale nemáme Fly mounta
     if #candidates == 0 and canFly then
         for i = 1, numMounts do
             local _, _, spellID = GetCompanionInfo("MOUNT", i)
@@ -120,49 +94,29 @@ local function Sausage_ExecuteMount()
     end
 
     if #candidates == 0 then
-        UIErrorsFrame:AddMessage("|cffeda55f[Sausage]|r No matching mounts found! Check your Manager.", 1.0, 0.0, 0.0)
+        UIErrorsFrame:AddMessage("|cffeda55f[Sausage]|r No matching mounts found! Check Manager.", 1.0, 0.0, 0.0)
+        self:SetAttribute("type", "macro")
+        self:SetAttribute("macrotext", "")
         return
     end
 
+    -- Vyberieme náhodného mounta a zistíme jeho Spell Name
     local index = candidates[math.random(1, #candidates)]
-    CallCompanion("MOUNT", index)
-end
+    local _, _, spellID = GetCompanionInfo("MOUNT", index)
+    local spellName = GetSpellInfo(spellID)
 
--- Update skript pre časovač (čaká 0.2 sekundy)
-MountTimer:SetScript("OnUpdate", function(self, elapsed)
-    mountDelay = mountDelay + elapsed
-    if mountDelay > 0.2 then 
-        self:Hide()
-        Sausage_ExecuteMount()
-    end
+    -- VYTVORÍME DYNAMICKÉ MAKRO PRE DRUIDOV A DISMOUNT
+    local macroString = "/dismount [mounted]\n/cancelform\n/cast " .. spellName
+    
+    self:SetAttribute("type", "macro")
+    self:SetAttribute("macrotext", macroString)
 end)
 
--- HLAVNÁ FUNKCIA (Volaná keybindom)
+-- Pôvodná Lua funkcia teraz slúži len pre UI tlacidlo, keybind pouziva makro vyssie
 function Sausage_CastRandomMount()
-    if IsMounted() then
-        Dismount()
-        return
+    if not InCombatLockdown() then
+        SausageMountCastBtn:Click()
     end
-
-    if InCombatLockdown() then
-        UIErrorsFrame:AddMessage("|cffeda55f[Sausage]|r Cannot mount in combat!", 1.0, 0.0, 0.0)
-        return
-    end
-
-    -- Zrušenie foriem (Druid / Shaman) + 1-Click Fix
-    local _, class = UnitClass("player")
-    if class == "DRUID" or class == "SHAMAN" then
-        if GetShapeshiftForm() > 0 then
-            CancelShapeshiftForm()
-            -- Naštartujeme mikro-časovač, aby server stihol zahodiť formu
-            mountDelay = 0
-            MountTimer:Show()
-            return
-        end
-    end
-
-    -- Ak sme neboli vo forme, mountneme sa okamžite
-    Sausage_ExecuteMount()
 end
 
 -- =========================================================================
@@ -189,7 +143,6 @@ MainFrame:SetBackdrop({
 local CloseBtn = CreateFrame("Button", nil, MainFrame, "UIPanelCloseButton")
 CloseBtn:SetPoint("TOPRIGHT", -5, -5)
 
--- HEADER
 local HeaderTexture = MainFrame:CreateTexture(nil, "ARTWORK")
 HeaderTexture:SetTexture("Interface\\DialogFrame\\UI-DialogBox-Header")
 HeaderTexture:SetWidth(250)
@@ -204,21 +157,15 @@ local Footer = MainFrame:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall"
 Footer:SetPoint("BOTTOM", 0, 15)
 Footer:SetText("by Sausage Party")
 
--- Version Text 
 local VersionText = MainFrame:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
 VersionText:SetPoint("BOTTOMLEFT", 20, 15)
 VersionText:SetText("v" .. SAUSAGE_VERSION)
 
--- Help Text
 local HelpText = MainFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 HelpText:SetPoint("BOTTOM", 0, 45)
 HelpText:SetWidth(350)
 HelpText:SetJustifyH("CENTER")
 HelpText:SetText("|cffFFD100Keybind:|r Press |cffFFFFFFESC -> Key Bindings -> Sausage Mount|r")
-
--- =========================================================================
--- 🆕 GITHUB POPUP FRAME
--- =========================================================================
 
 local GitFrame = CreateFrame("Frame", "SausageGitFrame", UIParent)
 GitFrame:SetSize(350, 120)
@@ -260,7 +207,6 @@ local GitInst = GitFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
 GitInst:SetPoint("BOTTOM", GitBox, "TOP", 0, 5)
 GitInst:SetText("Press CTRL+C to copy:")
 
--- BUTTON "CHECK UPDATES"
 local UpdateBtn = CreateFrame("Button", nil, MainFrame, "UIPanelButtonTemplate")
 UpdateBtn:SetSize(110, 25)
 UpdateBtn:SetPoint("BOTTOMRIGHT", -15, 12)
@@ -270,10 +216,6 @@ UpdateBtn:SetScript("OnClick", function()
     GitBox:SetFocus()
     GitBox:HighlightText()
 end)
-
--- =========================================================================
--- 📜 SCROLL FRAME
--- =========================================================================
 
 local function CreateDarkPanel(parent)
     local box = CreateFrame("Frame", nil, parent)
@@ -366,10 +308,6 @@ end)
 
 MainFrame:SetScript("OnShow", UpdateScrollList)
 
--- =========================================================================
--- 🌭 MINIMAP BUTTON
--- =========================================================================
-
 local MinimapBtn = CreateFrame("Button", "SausageMinimapButton", Minimap)
 MinimapBtn:SetSize(32, 32)
 MinimapBtn:SetFrameLevel(8)
@@ -422,10 +360,6 @@ MinimapBtn:SetScript("OnEnter", function(self)
 end)
 MinimapBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
--- =========================================================================
--- INITIALIZATION & SLASH COMMANDS
--- =========================================================================
-
 SM:RegisterEvent("ADDON_LOADED")
 SM:SetScript("OnEvent", function(self, event, arg1)
     if event == "ADDON_LOADED" and arg1 == "SausageMount" then
@@ -435,7 +369,6 @@ SM:SetScript("OnEvent", function(self, event, arg1)
         
         UpdateMinimapButton()
         
-        -- Default Slash Command pre Manager okno
         SLASH_SAUSAGE1 = "/sausage"
         SLASH_SAUSAGE2 = "/sm" 
         SlashCmdList["SAUSAGE"] = function(msg)
