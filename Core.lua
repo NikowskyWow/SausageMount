@@ -1,5 +1,5 @@
 -- =========================================================================
--- SAUSAGE MOUNT
+-- SAUSAGE MOUNT v1.1.0 - Druid Fix & Ground Fallback
 -- =========================================================================
 
 -- KONFIGURÁCIA
@@ -25,12 +25,12 @@ local FLY_KEYWORDS = {
     "Celestial", "Guardian", "Aspect", "Fey", "Reaver", "Nightmare",
     "Windsteed", "Seeker", "Crow", "Wind Rider",
     
-    -- NOVÉ PRIDANÉ (Podľa tvojho zoznamu)
+    -- Specific Additions
     "Al'ar",        -- Ashes of Al'ar
     "Wyrm",         -- Frost Wyrms
     "Vanquisher",   -- ICC Meta mounts
     "Winged",       -- Winged Steed of the Ebon Blade
-    "Horseman"      -- The Horseman's Reins (poistka)
+    "Horseman"      -- The Horseman's Reins
 }
 
 -- Default nastavenia
@@ -55,8 +55,9 @@ local function RefreshMountDB()
     for i = 1, numMounts do
         local creatureID, creatureName, spellID, icon, active = GetCompanionInfo("MOUNT", i)
         
+        local isFlyer = IsLikelyFlyer(creatureName)
+
         if not db.mounts[spellID] then
-            local isFlyer = IsLikelyFlyer(creatureName)
             db.mounts[spellID] = {
                 enabled = true,
                 isAir = isFlyer,
@@ -66,7 +67,7 @@ local function RefreshMountDB()
         else
             db.mounts[spellID].name = creatureName
             db.mounts[spellID].icon = icon
-            db.mounts[spellID].isAir = IsLikelyFlyer(creatureName)
+            db.mounts[spellID].isAir = isFlyer 
         end
     end
 end
@@ -82,12 +83,21 @@ function Sausage_CastRandomMount()
         return
     end
 
+    -- FIX: Zrušenie foriem (Druid / Shaman) pred mountnutím
+    local _, class = UnitClass("player")
+    if class == "DRUID" or class == "SHAMAN" then
+        if GetShapeshiftForm() > 0 then
+            CancelShapeshiftForm()
+        end
+    end
+
     RefreshMountDB()
 
     local zone = GetRealZoneText()
     local subZone = GetSubZoneText()
     local canFly = IsFlyableArea()
     
+    -- Dalaran / Wintergrasp logika
     if zone == "Dalaran" then
         if subZone == "Krasus' Landing" then canFly = true else canFly = false end
     elseif zone == "Wintergrasp" then
@@ -97,6 +107,7 @@ function Sausage_CastRandomMount()
     local candidates = {}
     local numMounts = GetNumCompanions("MOUNT")
 
+    -- KROK 1: Pokúsime sa nájsť mounta pre aktuálnu zónu
     for i = 1, numMounts do
         local _, _, spellID = GetCompanionInfo("MOUNT", i)
         local data = db.mounts[spellID]
@@ -110,15 +121,25 @@ function Sausage_CastRandomMount()
         end
     end
 
-    if #candidates == 0 then
-        if canFly then
-            UIErrorsFrame:AddMessage("|cffeda55f[Sausage]|r No FLYING mounts found!", 1.0, 0.0, 0.0)
-        else
-            UIErrorsFrame:AddMessage("|cffeda55f[Sausage]|r No GROUND mounts found!", 1.0, 0.0, 0.0)
+    -- FIX: Ak sme vo Fly zóne, ale nemáme žiadneho Fly mounta, použijeme Ground mounta
+    if #candidates == 0 and canFly then
+        for i = 1, numMounts do
+            local _, _, spellID = GetCompanionInfo("MOUNT", i)
+            local data = db.mounts[spellID]
+            -- Hľadáme len povolené pozemné mounty
+            if data and data.enabled and not data.isAir then
+                table.insert(candidates, i)
+            end
         end
+    end
+
+    -- Ak sme stále nič nenašli (hráč vypol všetkých mountov)
+    if #candidates == 0 then
+        UIErrorsFrame:AddMessage("|cffeda55f[Sausage]|r No matching mounts found! Check your Manager.", 1.0, 0.0, 0.0)
         return
     end
 
+    -- Vyvoláme náhodného mounta zo zoznamu
     local index = candidates[math.random(1, #candidates)]
     CallCompanion("MOUNT", index)
 end
@@ -147,7 +168,7 @@ MainFrame:SetBackdrop({
 local CloseBtn = CreateFrame("Button", nil, MainFrame, "UIPanelCloseButton")
 CloseBtn:SetPoint("TOPRIGHT", -5, -5)
 
--- HEADER (ZMENŠENÝ)
+-- HEADER
 local HeaderTexture = MainFrame:CreateTexture(nil, "ARTWORK")
 HeaderTexture:SetTexture("Interface\\DialogFrame\\UI-DialogBox-Header")
 HeaderTexture:SetWidth(250)
@@ -162,18 +183,17 @@ local Footer = MainFrame:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall"
 Footer:SetPoint("BOTTOM", 0, 15)
 Footer:SetText("by Sausage Party")
 
--- Version Text (Vľavo dole)
+-- Version Text 
 local VersionText = MainFrame:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
 VersionText:SetPoint("BOTTOMLEFT", 20, 15)
 VersionText:SetText("v" .. SAUSAGE_VERSION)
 
--- Help Text pre Keybind
+-- Help Text
 local HelpText = MainFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 HelpText:SetPoint("BOTTOM", 0, 45)
 HelpText:SetWidth(350)
 HelpText:SetJustifyH("CENTER")
 HelpText:SetText("|cffFFD100Keybind:|r Press |cffFFFFFFESC -> Key Bindings -> Sausage Mount|r")
-
 
 -- =========================================================================
 -- 🆕 GITHUB POPUP FRAME
@@ -219,7 +239,7 @@ local GitInst = GitFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
 GitInst:SetPoint("BOTTOM", GitBox, "TOP", 0, 5)
 GitInst:SetText("Press CTRL+C to copy:")
 
--- BUTTON "CHECK UPDATES" (Vpravo dole na hlavnom okne)
+-- BUTTON "CHECK UPDATES"
 local UpdateBtn = CreateFrame("Button", nil, MainFrame, "UIPanelButtonTemplate")
 UpdateBtn:SetSize(110, 25)
 UpdateBtn:SetPoint("BOTTOMRIGHT", -15, 12)
@@ -382,7 +402,7 @@ end)
 MinimapBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
 -- =========================================================================
--- INITIALIZATION
+-- INITIALIZATION & SLASH COMMANDS
 -- =========================================================================
 
 SM:RegisterEvent("ADDON_LOADED")
@@ -391,9 +411,19 @@ SM:SetScript("OnEvent", function(self, event, arg1)
         if not SausageMountDB then SausageMountDB = defaults end
         db = SausageMountDB
         if not db.mounts then db.mounts = {} end
-        RefreshMountDB()
         
         UpdateMinimapButton()
+        
+        -- Default Slash Command pre Manager okno
+        SLASH_SAUSAGE1 = "/sausage"
+        SLASH_SAUSAGE2 = "/sm" 
+        SlashCmdList["SAUSAGE"] = function(msg)
+            if msg == "cast" then
+                Sausage_CastRandomMount()
+            else
+                MainFrame:Show()
+            end
+        end
         
         self:UnregisterEvent("ADDON_LOADED")
     end
