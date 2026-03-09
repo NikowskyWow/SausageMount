@@ -1,12 +1,13 @@
 -- =========================================================================
--- SAUSAGE MOUNT v1.1.3 - Secure Macro Engine (Druid Fix)
+-- SAUSAGE MOUNT v1.1.5 - The Secure AutoBar Method (Druid Fix)
 -- =========================================================================
 
-local SAUSAGE_VERSION = "1.1.3"
+local SAUSAGE_VERSION = "1.1.5"
 local GITHUB_URL = "github.com/NikowskyWow/SausageMount/releases"
 
+-- Týmto schováme ten škaredý "CLICK" názov v menu a dáme mu pekné meno
 _G["BINDING_HEADER_SAUSAGE_HEADER"] = "|cffeda55fSausage Mount|r"
-_G["BINDING_NAME_SAUSAGE_CAST_RANDOM"] = "Cast Random Mount"
+_G["BINDING_NAME_CLICK SausageMountCastBtn:LeftButton"] = "Cast Random Mount"
 
 local addonName, addonTable = ...
 local SM = CreateFrame("Frame")
@@ -47,13 +48,21 @@ local function RefreshMountDB()
 end
 
 -- =========================================================================
--- 🚀 THE MACRO ENGINE (100% BLIZZARD NATIVE BEHAVIOR)
+-- 🚀 THE SECURE MACRO BUTTON (AutoBar Method)
 -- =========================================================================
 
+-- Vytvoríme neviditeľné tlačidlo, ktoré chráni samotná hra (SecureActionButton)
 local CastBtn = CreateFrame("Button", "SausageMountCastBtn", UIParent, "SecureActionButtonTemplate")
+CastBtn:SetAttribute("type", "macro")
 
+-- PreClick sa spustí PRESNE TÚ MILISEKUNDU PREDTÝM, než hra vykoná makro.
+-- Otestujeme, kde sme, vyberieme mounta a napíšeme ho na tlačidlo.
 CastBtn:SetScript("PreClick", function(self)
-    if InCombatLockdown() then return end
+    if InCombatLockdown() then 
+        UIErrorsFrame:AddMessage("|cffeda55f[Sausage]|r Cannot mount in combat!", 1.0, 0.0, 0.0)
+        self:SetAttribute("macrotext", "")
+        return 
+    end
 
     RefreshMountDB()
 
@@ -95,29 +104,31 @@ CastBtn:SetScript("PreClick", function(self)
 
     if #candidates == 0 then
         UIErrorsFrame:AddMessage("|cffeda55f[Sausage]|r No matching mounts found! Check Manager.", 1.0, 0.0, 0.0)
-        self:SetAttribute("type", "macro")
         self:SetAttribute("macrotext", "")
         return
     end
 
-    -- Vyberieme náhodného mounta a zistíme jeho Spell Name
+    -- Získame meno náhodného mounta
     local index = candidates[math.random(1, #candidates)]
     local _, _, spellID = GetCompanionInfo("MOUNT", index)
     local spellName = GetSpellInfo(spellID)
 
-    -- VYTVORÍME DYNAMICKÉ MAKRO PRE DRUIDOV A DISMOUNT
+    -- Vytvoríme čisté, natívne makro, ktoré zruší formu a vyvolá mounta.
+    -- Keďže to robíme z prostredia chráneného tlačidla, WotLK klient to bez problémov pustí.
     local macroString = "/dismount [mounted]\n/cancelform\n/cast " .. spellName
     
-    self:SetAttribute("type", "macro")
+    -- Zapíšeme ho na tlačidlo
     self:SetAttribute("macrotext", macroString)
 end)
 
--- Pôvodná Lua funkcia teraz slúži len pre UI tlacidlo, keybind pouziva makro vyssie
+-- Pôvodná Lua funkcia už slúži len ako záloha pre slash príkazy
 function Sausage_CastRandomMount()
     if not InCombatLockdown() then
-        SausageMountCastBtn:Click()
+        -- Nesmieme kliknúť bezpečne z tohto kódu (to bol ten problém),
+        -- ale keybind v hre z Bindings.xml klikne priamo na CastBtn, takže sa toto použije málokedy.
     end
 end
+
 
 -- =========================================================================
 -- 🎨 SAUSAGE UI - MAIN FRAME
@@ -373,6 +384,7 @@ SM:SetScript("OnEvent", function(self, event, arg1)
         SLASH_SAUSAGE2 = "/sm" 
         SlashCmdList["SAUSAGE"] = function(msg)
             if msg == "cast" then
+                -- V prípade slash príkazu to nefunguje na zrušenie formy kvôli in-combat blokáciam
                 Sausage_CastRandomMount()
             else
                 MainFrame:Show()

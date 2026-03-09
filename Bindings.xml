@@ -1,7 +1,4 @@
 <Bindings>
-    <Binding name="SAUSAGE_CAST_RANDOM" header="SAUSAGE_HEADER">
-        if not InCombatLockdown() then
-            SausageMountCastBtn:Click()
-        end
+    <Binding name="CLICK SausageMountCastBtn:LeftButton" header="SAUSAGE_HEADER">
     </Binding>
 </Bindings>
