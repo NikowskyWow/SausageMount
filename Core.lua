@@ -1,11 +1,10 @@
 -- =========================================================================
--- SAUSAGE MOUNT v1.1.5 - The Secure AutoBar Method (Druid Fix)
+-- SAUSAGE MOUNT v1.1.7 - Error Suppression (Clean Fall-through)
 -- =========================================================================
 
-local SAUSAGE_VERSION = "1.1.5"
+local SAUSAGE_VERSION = "1.1.7"
 local GITHUB_URL = "github.com/NikowskyWow/SausageMount/releases"
 
--- Týmto schováme ten škaredý "CLICK" názov v menu a dáme mu pekné meno
 _G["BINDING_HEADER_SAUSAGE_HEADER"] = "|cffeda55fSausage Mount|r"
 _G["BINDING_NAME_CLICK SausageMountCastBtn:LeftButton"] = "Cast Random Mount"
 
@@ -48,15 +47,12 @@ local function RefreshMountDB()
 end
 
 -- =========================================================================
--- 🚀 THE SECURE MACRO BUTTON (AutoBar Method)
+-- 🚀 THE SECURE MACRO BUTTON
 -- =========================================================================
 
--- Vytvoríme neviditeľné tlačidlo, ktoré chráni samotná hra (SecureActionButton)
 local CastBtn = CreateFrame("Button", "SausageMountCastBtn", UIParent, "SecureActionButtonTemplate")
 CastBtn:SetAttribute("type", "macro")
 
--- PreClick sa spustí PRESNE TÚ MILISEKUNDU PREDTÝM, než hra vykoná makro.
--- Otestujeme, kde sme, vyberieme mounta a napíšeme ho na tlačidlo.
 CastBtn:SetScript("PreClick", function(self)
     if InCombatLockdown() then 
         UIErrorsFrame:AddMessage("|cffeda55f[Sausage]|r Cannot mount in combat!", 1.0, 0.0, 0.0)
@@ -76,57 +72,60 @@ CastBtn:SetScript("PreClick", function(self)
         if not canFly then canFly = false end
     end
 
-    local candidates = {}
+    local flyCandidates = {}
+    local groundCandidates = {}
     local numMounts = GetNumCompanions("MOUNT")
 
     for i = 1, numMounts do
         local _, _, spellID = GetCompanionInfo("MOUNT", i)
         local data = db.mounts[spellID]
         if data and data.enabled then
-            if canFly then
-                if data.isAir then table.insert(candidates, i) end
-            else
-                if not data.isAir then table.insert(candidates, i) end
+            if data.isAir then 
+                table.insert(flyCandidates, i) 
+            else 
+                table.insert(groundCandidates, i) 
             end
         end
     end
 
-    -- Fallback: Ak sme vo Fly zóne, ale nemáme Fly mounta
-    if #candidates == 0 and canFly then
-        for i = 1, numMounts do
-            local _, _, spellID = GetCompanionInfo("MOUNT", i)
-            local data = db.mounts[spellID]
-            if data and data.enabled and not data.isAir then
-                table.insert(candidates, i)
-            end
-        end
+    -- Začiatok makra s vypnutím chybových hlášok (zvukových aj textových)
+    local macroString = "/console Sound_EnableErrorSpeech 0\n"
+    macroString = macroString .. "/dismount [mounted]\n/cancelform\n"
+    local addedMount = false
+
+    -- KROK 1: Fly Mount (ak môžeme teoreticky lietať)
+    if canFly and #flyCandidates > 0 then
+        local index = flyCandidates[math.random(1, #flyCandidates)]
+        local _, _, spellID = GetCompanionInfo("MOUNT", index)
+        local flySpellName = GetSpellInfo(spellID)
+        macroString = macroString .. "/cast " .. flySpellName .. "\n"
+        addedMount = true
     end
 
-    if #candidates == 0 then
+    -- KROK 2: Ground Mount (Záchrana)
+    if #groundCandidates > 0 then
+        local index = groundCandidates[math.random(1, #groundCandidates)]
+        local _, _, spellID = GetCompanionInfo("MOUNT", index)
+        local groundSpellName = GetSpellInfo(spellID)
+        macroString = macroString .. "/cast " .. groundSpellName .. "\n"
+        addedMount = true
+    end
+
+    if not addedMount then
         UIErrorsFrame:AddMessage("|cffeda55f[Sausage]|r No matching mounts found! Check Manager.", 1.0, 0.0, 0.0)
         self:SetAttribute("macrotext", "")
         return
     end
 
-    -- Získame meno náhodného mounta
-    local index = candidates[math.random(1, #candidates)]
-    local _, _, spellID = GetCompanionInfo("MOUNT", index)
-    local spellName = GetSpellInfo(spellID)
+    -- Zmažeme červený error text a znovu zapneme zvuky
+    macroString = macroString .. "/script UIErrorsFrame:Clear()\n"
+    macroString = macroString .. "/console Sound_EnableErrorSpeech 1\n"
 
-    -- Vytvoríme čisté, natívne makro, ktoré zruší formu a vyvolá mounta.
-    -- Keďže to robíme z prostredia chráneného tlačidla, WotLK klient to bez problémov pustí.
-    local macroString = "/dismount [mounted]\n/cancelform\n/cast " .. spellName
-    
-    -- Zapíšeme ho na tlačidlo
     self:SetAttribute("macrotext", macroString)
 end)
 
--- Pôvodná Lua funkcia už slúži len ako záloha pre slash príkazy
 function Sausage_CastRandomMount()
-    if not InCombatLockdown() then
-        -- Nesmieme kliknúť bezpečne z tohto kódu (to bol ten problém),
-        -- ale keybind v hre z Bindings.xml klikne priamo na CastBtn, takže sa toto použije málokedy.
-    end
+    -- Záložná funkcia.
 end
 
 
@@ -384,7 +383,6 @@ SM:SetScript("OnEvent", function(self, event, arg1)
         SLASH_SAUSAGE2 = "/sm" 
         SlashCmdList["SAUSAGE"] = function(msg)
             if msg == "cast" then
-                -- V prípade slash príkazu to nefunguje na zrušenie formy kvôli in-combat blokáciam
                 Sausage_CastRandomMount()
             else
                 MainFrame:Show()
