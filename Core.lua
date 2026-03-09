@@ -2,7 +2,7 @@
 -- SAUSAGE MOUNT v1.1.5 - The Secure AutoBar Method (Druid Fix)
 -- =========================================================================
 
-local SAUSAGE_VERSION = "1.1.5"
+local SAUSAGE_VERSION = "1.1.4"
 local GITHUB_URL = "github.com/NikowskyWow/SausageMount/releases"
 
 -- Týmto schováme ten škaredý "CLICK" názov v menu a dáme mu pekné meno

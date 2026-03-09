@@ -2,7 +2,7 @@
 ## Title: |cffeda55fSausage|r Mount
 ## Notes: Random mount summoner by Sausage Party.
 ## Author: Sausage Party
-## Version: 1.1.3
+## Version: 1.1.4
 ## SavedVariables: SausageMountDB
 
 Core.lua
