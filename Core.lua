@@ -1,9 +1,9 @@
 -- =========================================================================
--- SAUSAGE MOUNT v1.1.0 - Druid Fix & Ground Fallback
+-- SAUSAGE MOUNT v1.1.1 - 1-Click Shapeshift Fix & Ground Fallback
 -- =========================================================================
 
 -- KONFIGURÁCIA
-local SAUSAGE_VERSION = "1.1.0"
+local SAUSAGE_VERSION = "1.1.1"
 local GITHUB_URL = "github.com/NikowskyWow/SausageMount/releases"
 
 -- 1. DEFINÍCIA NÁZVOV PRE MENU
@@ -72,25 +72,13 @@ local function RefreshMountDB()
     end
 end
 
-function Sausage_CastRandomMount()
-    if IsMounted() then
-        Dismount()
-        return
-    end
+-- === MIKRO ČASOVAČ PRE SHAPESHIFTY ===
+local MountTimer = CreateFrame("Frame")
+MountTimer:Hide()
+local mountDelay = 0
 
-    if InCombatLockdown() then
-        UIErrorsFrame:AddMessage("|cffeda55f[Sausage]|r Cannot mount in combat!", 1.0, 0.0, 0.0)
-        return
-    end
-
-    -- FIX: Zrušenie foriem (Druid / Shaman) pred mountnutím
-    local _, class = UnitClass("player")
-    if class == "DRUID" or class == "SHAMAN" then
-        if GetShapeshiftForm() > 0 then
-            CancelShapeshiftForm()
-        end
-    end
-
+-- Samotné vyvolanie mounta (Oddelené kvôli časovaču)
+local function Sausage_ExecuteMount()
     RefreshMountDB()
 
     local zone = GetRealZoneText()
@@ -107,7 +95,6 @@ function Sausage_CastRandomMount()
     local candidates = {}
     local numMounts = GetNumCompanions("MOUNT")
 
-    -- KROK 1: Pokúsime sa nájsť mounta pre aktuálnu zónu
     for i = 1, numMounts do
         local _, _, spellID = GetCompanionInfo("MOUNT", i)
         local data = db.mounts[spellID]
@@ -121,27 +108,61 @@ function Sausage_CastRandomMount()
         end
     end
 
-    -- FIX: Ak sme vo Fly zóne, ale nemáme žiadneho Fly mounta, použijeme Ground mounta
+    -- Fallback: Ak sme vo Fly zóne, ale nemáme žiadneho povoleného Fly mounta
     if #candidates == 0 and canFly then
         for i = 1, numMounts do
             local _, _, spellID = GetCompanionInfo("MOUNT", i)
             local data = db.mounts[spellID]
-            -- Hľadáme len povolené pozemné mounty
             if data and data.enabled and not data.isAir then
                 table.insert(candidates, i)
             end
         end
     end
 
-    -- Ak sme stále nič nenašli (hráč vypol všetkých mountov)
     if #candidates == 0 then
         UIErrorsFrame:AddMessage("|cffeda55f[Sausage]|r No matching mounts found! Check your Manager.", 1.0, 0.0, 0.0)
         return
     end
 
-    -- Vyvoláme náhodného mounta zo zoznamu
     local index = candidates[math.random(1, #candidates)]
     CallCompanion("MOUNT", index)
+end
+
+-- Update skript pre časovač (čaká 0.2 sekundy)
+MountTimer:SetScript("OnUpdate", function(self, elapsed)
+    mountDelay = mountDelay + elapsed
+    if mountDelay > 0.2 then 
+        self:Hide()
+        Sausage_ExecuteMount()
+    end
+end)
+
+-- HLAVNÁ FUNKCIA (Volaná keybindom)
+function Sausage_CastRandomMount()
+    if IsMounted() then
+        Dismount()
+        return
+    end
+
+    if InCombatLockdown() then
+        UIErrorsFrame:AddMessage("|cffeda55f[Sausage]|r Cannot mount in combat!", 1.0, 0.0, 0.0)
+        return
+    end
+
+    -- Zrušenie foriem (Druid / Shaman) + 1-Click Fix
+    local _, class = UnitClass("player")
+    if class == "DRUID" or class == "SHAMAN" then
+        if GetShapeshiftForm() > 0 then
+            CancelShapeshiftForm()
+            -- Naštartujeme mikro-časovač, aby server stihol zahodiť formu
+            mountDelay = 0
+            MountTimer:Show()
+            return
+        end
+    end
+
+    -- Ak sme neboli vo forme, mountneme sa okamžite
+    Sausage_ExecuteMount()
 end
 
 -- =========================================================================
