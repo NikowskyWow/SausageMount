@@ -32,7 +32,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -m "Bump version to ${{ env.VERSION }}"
+          git commit -am "Bump version to ${{ env.VERSION }}"
           
           # Zistíme názov default vetvy (zvyčajne main alebo master) a pushneme zmenu
           DEFAULT_BRANCH=$(git remote show origin | grep 'HEAD branch' | cut -d' ' -f5)
