@@ -2,11 +2,7 @@
 -- SAUSAGE MOUNT v1.1.7 - Error Suppression (Clean Fall-through)
 -- =========================================================================
 
-<<<<<<< HEAD
 local SAUSAGE_VERSION = "1.1.5"
-=======
-local SAUSAGE_VERSION = "1.1.5"
->>>>>>> ea99fdf7fb7b4d02d3f443a29360e46caa47ba19
 local GITHUB_URL = "github.com/NikowskyWow/SausageMount/releases"
 
 _G["BINDING_HEADER_SAUSAGE_HEADER"] = "|cffeda55fSausage Mount|r"
