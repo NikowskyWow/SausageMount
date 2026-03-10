@@ -1,8 +1,8 @@
 -- =========================================================================
--- SAUSAGE MOUNT v1.1.7 - Error Suppression (Clean Fall-through)
+-- SAUSAGE MOUNT
 -- =========================================================================
 
-local SAUSAGE_VERSION = "1.1.5"
+local SAUSAGE_VERSION = "1.1.8"
 local GITHUB_URL = "github.com/NikowskyWow/SausageMount/releases"
 
 _G["BINDING_HEADER_SAUSAGE_HEADER"] = "|cffeda55fSausage Mount|r"
@@ -47,6 +47,38 @@ local function RefreshMountDB()
 end
 
 -- =========================================================================
+-- 🛡️ ADVANCED ERROR SUPPRESSION
+-- =========================================================================
+
+local isSuppressing = false
+local suppressTimer = 0
+local ErrorBlocker = CreateFrame("Frame")
+ErrorBlocker:Hide()
+
+-- Tento časovač beží 1.5 sekundy po stlačení (pokrýva dĺžku castenia mounta)
+ErrorBlocker:SetScript("OnUpdate", function(self, elapsed)
+    suppressTimer = suppressTimer + elapsed
+    if suppressTimer > 1.5 then 
+        isSuppressing = false
+        self:Hide()
+    end
+end)
+
+-- Odchytávanie chybových hlášok priamo zo systému hry
+local originalAddMessage = UIErrorsFrame.AddMessage
+UIErrorsFrame.AddMessage = function(frame, text, r, g, b, id)
+    if isSuppressing and text then
+        -- Ak hra vypíše jeden z týchto konkrétnych fall-through errorov, zablokujeme ho
+        if text == SPELL_FAILED_SPELL_IN_PROGRESS or text == SPELL_FAILED_NOT_HERE 
+           or string.find(text, "Another action") or string.find(text, "use that here") then
+            return -- Chyba sa neukáže
+        end
+    end
+    -- Inak ukážeme chybu normálne (napr. "Not enough mana")
+    originalAddMessage(frame, text, r, g, b, id)
+end
+
+-- =========================================================================
 -- 🚀 THE SECURE MACRO BUTTON
 -- =========================================================================
 
@@ -59,6 +91,11 @@ CastBtn:SetScript("PreClick", function(self)
         self:SetAttribute("macrotext", "")
         return 
     end
+
+    -- Aktivujeme náš tichý filter na 1.5 sekundy
+    isSuppressing = true
+    suppressTimer = 0
+    ErrorBlocker:Show()
 
     RefreshMountDB()
 
@@ -88,12 +125,12 @@ CastBtn:SetScript("PreClick", function(self)
         end
     end
 
-    -- Začiatok makra s vypnutím chybových hlášok (zvukových aj textových)
+    -- Vypíname zvukové chybové hlášky (napr. "I can't cast that yet")
     local macroString = "/console Sound_EnableErrorSpeech 0\n"
     macroString = macroString .. "/dismount [mounted]\n/cancelform\n"
     local addedMount = false
 
-    -- KROK 1: Fly Mount (ak môžeme teoreticky lietať)
+    -- KROK 1: Fly Mount (hlavná voľba)
     if canFly and #flyCandidates > 0 then
         local index = flyCandidates[math.random(1, #flyCandidates)]
         local _, _, spellID = GetCompanionInfo("MOUNT", index)
@@ -102,7 +139,7 @@ CastBtn:SetScript("PreClick", function(self)
         addedMount = true
     end
 
-    -- KROK 2: Ground Mount (Záchrana)
+    -- KROK 2: Ground Mount (záchranná voľba do tunelov)
     if #groundCandidates > 0 then
         local index = groundCandidates[math.random(1, #groundCandidates)]
         local _, _, spellID = GetCompanionInfo("MOUNT", index)
@@ -117,15 +154,14 @@ CastBtn:SetScript("PreClick", function(self)
         return
     end
 
-    -- Zmažeme červený error text a znovu zapneme zvuky
-    macroString = macroString .. "/script UIErrorsFrame:Clear()\n"
+    -- Znovu zapneme zvukové chybové hlášky
     macroString = macroString .. "/console Sound_EnableErrorSpeech 1\n"
 
     self:SetAttribute("macrotext", macroString)
 end)
 
 function Sausage_CastRandomMount()
-    -- Záložná funkcia.
+    -- Záložná funkcia. 
 end
 
 
