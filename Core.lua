@@ -1,8 +1,8 @@
 -- =========================================================================
--- SAUSAGE MOUNT
+-- SAUSAGE MOUNT v1.1.9 - Pure Native Logic & Clean Macro
 -- =========================================================================
 
-local SAUSAGE_VERSION = "1.1.8"
+local SAUSAGE_VERSION = "1.1.9"
 local GITHUB_URL = "github.com/NikowskyWow/SausageMount/releases"
 
 _G["BINDING_HEADER_SAUSAGE_HEADER"] = "|cffeda55fSausage Mount|r"
@@ -47,39 +47,7 @@ local function RefreshMountDB()
 end
 
 -- =========================================================================
--- 🛡️ ADVANCED ERROR SUPPRESSION
--- =========================================================================
-
-local isSuppressing = false
-local suppressTimer = 0
-local ErrorBlocker = CreateFrame("Frame")
-ErrorBlocker:Hide()
-
--- Tento časovač beží 1.5 sekundy po stlačení (pokrýva dĺžku castenia mounta)
-ErrorBlocker:SetScript("OnUpdate", function(self, elapsed)
-    suppressTimer = suppressTimer + elapsed
-    if suppressTimer > 1.5 then 
-        isSuppressing = false
-        self:Hide()
-    end
-end)
-
--- Odchytávanie chybových hlášok priamo zo systému hry
-local originalAddMessage = UIErrorsFrame.AddMessage
-UIErrorsFrame.AddMessage = function(frame, text, r, g, b, id)
-    if isSuppressing and text then
-        -- Ak hra vypíše jeden z týchto konkrétnych fall-through errorov, zablokujeme ho
-        if text == SPELL_FAILED_SPELL_IN_PROGRESS or text == SPELL_FAILED_NOT_HERE 
-           or string.find(text, "Another action") or string.find(text, "use that here") then
-            return -- Chyba sa neukáže
-        end
-    end
-    -- Inak ukážeme chybu normálne (napr. "Not enough mana")
-    originalAddMessage(frame, text, r, g, b, id)
-end
-
--- =========================================================================
--- 🚀 THE SECURE MACRO BUTTON
+-- 🚀 THE SECURE MACRO BUTTON (Clean 1-Cast Engine)
 -- =========================================================================
 
 local CastBtn = CreateFrame("Button", "SausageMountCastBtn", UIParent, "SecureActionButtonTemplate")
@@ -92,22 +60,10 @@ CastBtn:SetScript("PreClick", function(self)
         return 
     end
 
-    -- Aktivujeme náš tichý filter na 1.5 sekundy
-    isSuppressing = true
-    suppressTimer = 0
-    ErrorBlocker:Show()
-
     RefreshMountDB()
 
-    local zone = GetRealZoneText()
-    local subZone = GetSubZoneText()
+    -- WotLK API spoľahlivo vie zistiť, či sme v tuneli (false) alebo vonku (true)
     local canFly = IsFlyableArea()
-    
-    if zone == "Dalaran" then
-        if subZone == "Krasus' Landing" then canFly = true else canFly = false end
-    elseif zone == "Wintergrasp" then
-        if not canFly then canFly = false end
-    end
 
     local flyCandidates = {}
     local groundCandidates = {}
@@ -125,43 +81,34 @@ CastBtn:SetScript("PreClick", function(self)
         end
     end
 
-    -- Vypíname zvukové chybové hlášky (napr. "I can't cast that yet")
-    local macroString = "/console Sound_EnableErrorSpeech 0\n"
-    macroString = macroString .. "/dismount [mounted]\n/cancelform\n"
-    local addedMount = false
+    local mountSpellName = nil
 
-    -- KROK 1: Fly Mount (hlavná voľba)
+    -- KROK 1: Sme vo fly zóne a máme povoleného fly mounta
     if canFly and #flyCandidates > 0 then
         local index = flyCandidates[math.random(1, #flyCandidates)]
         local _, _, spellID = GetCompanionInfo("MOUNT", index)
-        local flySpellName = GetSpellInfo(spellID)
-        macroString = macroString .. "/cast " .. flySpellName .. "\n"
-        addedMount = true
-    end
-
-    -- KROK 2: Ground Mount (záchranná voľba do tunelov)
-    if #groundCandidates > 0 then
+        mountSpellName = GetSpellInfo(spellID)
+    
+    -- KROK 2: Sme v ground zóne, tuneli, jaskyni, alebo nemáme fly mounta
+    elseif #groundCandidates > 0 then
         local index = groundCandidates[math.random(1, #groundCandidates)]
         local _, _, spellID = GetCompanionInfo("MOUNT", index)
-        local groundSpellName = GetSpellInfo(spellID)
-        macroString = macroString .. "/cast " .. groundSpellName .. "\n"
-        addedMount = true
+        mountSpellName = GetSpellInfo(spellID)
     end
 
-    if not addedMount then
+    if not mountSpellName then
         UIErrorsFrame:AddMessage("|cffeda55f[Sausage]|r No matching mounts found! Check Manager.", 1.0, 0.0, 0.0)
         self:SetAttribute("macrotext", "")
         return
     end
 
-    -- Znovu zapneme zvukové chybové hlášky
-    macroString = macroString .. "/console Sound_EnableErrorSpeech 1\n"
-
+    -- Dynamicky vygenerujeme čisté, nekonfliktné makro
+    local macroString = "/dismount [mounted]\n/cancelform\n/cast " .. mountSpellName
     self:SetAttribute("macrotext", macroString)
 end)
 
 function Sausage_CastRandomMount()
-    -- Záložná funkcia. 
+    -- Záložná funkcia
 end
 
 
